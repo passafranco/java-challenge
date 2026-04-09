@@ -4,6 +4,7 @@ import com.mendel.challenge.model.Transaction;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 
@@ -20,13 +21,13 @@ class InMemoryTransactionRepositoryTest {
 
     @Test
     void shouldSaveAndFindById() {
-        Transaction tx = new Transaction(10L, 5000.0, "cars", null);
+        Transaction tx = new Transaction(10L, new BigDecimal("5000"), "cars", null);
         repository.save(tx);
 
         Optional<Transaction> found = repository.findById(10L);
 
         assertTrue(found.isPresent());
-        assertEquals(5000.0, found.get().getAmount());
+        assertEquals(0, new BigDecimal("5000").compareTo(found.get().getAmount()));
         assertEquals("cars", found.get().getType());
     }
 
@@ -39,9 +40,9 @@ class InMemoryTransactionRepositoryTest {
 
     @Test
     void shouldFindIdsByType() {
-        repository.save(new Transaction(10L, 5000.0, "cars", null));
-        repository.save(new Transaction(11L, 3000.0, "cars", null));
-        repository.save(new Transaction(12L, 7000.0, "shopping", null));
+        repository.save(new Transaction(10L, new BigDecimal("5000"), "cars", null));
+        repository.save(new Transaction(11L, new BigDecimal("3000"), "cars", null));
+        repository.save(new Transaction(12L, new BigDecimal("7000"), "shopping", null));
 
         List<Long> carIds = repository.findIdsByType("cars");
 
@@ -58,9 +59,9 @@ class InMemoryTransactionRepositoryTest {
 
     @Test
     void shouldFindChildrenIds() {
-        repository.save(new Transaction(10L, 5000.0, "cars", null));
-        repository.save(new Transaction(11L, 10000.0, "shopping", 10L));
-        repository.save(new Transaction(12L, 5000.0, "shopping", 10L));
+        repository.save(new Transaction(10L, new BigDecimal("5000"), "cars", null));
+        repository.save(new Transaction(11L, new BigDecimal("10000"), "shopping", 10L));
+        repository.save(new Transaction(12L, new BigDecimal("5000"), "shopping", 10L));
 
         List<Long> children = repository.findChildrenIds(10L);
 
@@ -70,7 +71,7 @@ class InMemoryTransactionRepositoryTest {
 
     @Test
     void shouldReturnEmptyListWhenNoChildren() {
-        repository.save(new Transaction(10L, 5000.0, "cars", null));
+        repository.save(new Transaction(10L, new BigDecimal("5000"), "cars", null));
 
         List<Long> children = repository.findChildrenIds(10L);
 

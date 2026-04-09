@@ -65,7 +65,7 @@ class TransactionControllerIntegrationTest {
     void shouldGetTransitiveSumForTransaction10() throws Exception {
         mockMvc.perform(get("/transactions/sum/10"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.sum").value(20000.0));
+                .andExpect(jsonPath("$.sum").value(20000));
     }
 
     @Test
@@ -73,7 +73,7 @@ class TransactionControllerIntegrationTest {
     void shouldGetTransitiveSumForTransaction11() throws Exception {
         mockMvc.perform(get("/transactions/sum/11"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.sum").value(15000.0));
+                .andExpect(jsonPath("$.sum").value(15000));
     }
 
     @Test
@@ -119,5 +119,33 @@ class TransactionControllerIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"amount\": 1000}"))
                 .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @Order(12)
+    void shouldAcceptAmountWithTwoDecimals() throws Exception {
+        mockMvc.perform(put("/transactions/20")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"amount\": 1500.75, \"type\": \"food\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("ok"));
+    }
+
+    @Test
+    @Order(13)
+    void shouldRejectAmountWithMoreThanTwoDecimals() throws Exception {
+        mockMvc.perform(put("/transactions/21")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"amount\": 1500.123, \"type\": \"food\"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("Amount must have at most 2 decimal places"));
+    }
+
+    @Test
+    @Order(14)
+    void shouldReturnSumWithTwoDecimalPlaces() throws Exception {
+        mockMvc.perform(get("/transactions/sum/20"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.sum").value(1500.75));
     }
 }

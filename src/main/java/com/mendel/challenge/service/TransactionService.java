@@ -1,6 +1,5 @@
 package com.mendel.challenge.service;
 
-import com.mendel.challenge.exception.InvalidTransactionException;
 import com.mendel.challenge.exception.TransactionAlreadyExistsException;
 import com.mendel.challenge.exception.TransactionNotFoundException;
 import com.mendel.challenge.model.Transaction;
@@ -8,19 +7,19 @@ import com.mendel.challenge.repository.TransactionRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.List;
 
 @Service
 @RequiredArgsConstructor
 public class TransactionService {
 
+    private static final int SCALE = 2;
+
     private final TransactionRepository transactionRepository;
 
-    public void createTransaction(Long id, Double amount, String type, Long parentId) {
-        if (amount == null || type == null || type.isBlank()) {
-            throw new InvalidTransactionException("Amount and type are required");
-        }
-
+    public void createTransaction(Long id, BigDecimal amount, String type, Long parentId) {
         if (transactionRepository.findById(id).isPresent()) {
             throw new TransactionAlreadyExistsException(id);
         }
@@ -29,7 +28,7 @@ public class TransactionService {
             throw new TransactionNotFoundException(parentId);
         }
 
-        Transaction transaction = new Transaction(id, amount, type, parentId);
+        Transaction transaction = new Transaction(id, amount.setScale(SCALE, RoundingMode.HALF_UP), type, parentId);
         transactionRepository.save(transaction);
     }
 
@@ -37,16 +36,17 @@ public class TransactionService {
         return transactionRepository.findIdsByType(type);
     }
 
-    public double getTransitiveSum(Long transactionId) {
+    public BigDecimal getTransitiveSum(Long transactionId) {
         return transactionRepository.findById(transactionId)
-                .map(tx -> tx.getAmount() + sumChildren(transactionId))
+                .map(tx -> tx.getAmount().add(sumChildren(transactionId))
+                        .setScale(SCALE, RoundingMode.HALF_UP))
                 .orElseThrow(() -> new TransactionNotFoundException(transactionId));
     }
 
-    private double sumChildren(Long parentId) {
+    private BigDecimal sumChildren(Long parentId) {
         return transactionRepository.findChildrenIds(parentId).stream()
                 .flatMap(childId -> transactionRepository.findById(childId).stream())
-                .mapToDouble(child -> child.getAmount() + sumChildren(child.getId()))
-                .sum();
+                .map(child -> child.getAmount().add(sumChildren(child.getId())))
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
     }
 }
