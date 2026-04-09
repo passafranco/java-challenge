@@ -1,5 +1,8 @@
 package com.mendel.challenge.service;
 
+import com.mendel.challenge.exception.InvalidTransactionException;
+import com.mendel.challenge.exception.TransactionAlreadyExistsException;
+import com.mendel.challenge.exception.TransactionNotFoundException;
 import com.mendel.challenge.model.Transaction;
 import com.mendel.challenge.repository.TransactionRepository;
 import org.junit.jupiter.api.Test;
@@ -27,6 +30,8 @@ class TransactionServiceTest {
 
     @Test
     void shouldCreateTransaction() {
+        when(transactionRepository.findById(10L)).thenReturn(Optional.empty());
+
         transactionService.createTransaction(10L, 5000.0, "cars", null);
 
         verify(transactionRepository).save(any(Transaction.class));
@@ -34,6 +39,9 @@ class TransactionServiceTest {
 
     @Test
     void shouldCreateTransactionWithParentId() {
+        when(transactionRepository.findById(11L)).thenReturn(Optional.empty());
+        when(transactionRepository.findById(10L)).thenReturn(Optional.of(new Transaction(10L, 5000.0, "cars", null)));
+
         transactionService.createTransaction(11L, 10000.0, "shopping", 10L);
 
         verify(transactionRepository).save(argThat(tx ->
@@ -42,6 +50,35 @@ class TransactionServiceTest {
                 tx.getType().equals("shopping") &&
                 tx.getParentId().equals(10L)
         ));
+    }
+
+    @Test
+    void shouldThrowWhenTransactionAlreadyExists() {
+        when(transactionRepository.findById(10L)).thenReturn(Optional.of(new Transaction(10L, 5000.0, "cars", null)));
+
+        assertThrows(TransactionAlreadyExistsException.class,
+                () -> transactionService.createTransaction(10L, 5000.0, "cars", null));
+    }
+
+    @Test
+    void shouldThrowWhenParentIdNotFound() {
+        when(transactionRepository.findById(11L)).thenReturn(Optional.empty());
+        when(transactionRepository.findById(99L)).thenReturn(Optional.empty());
+
+        assertThrows(TransactionNotFoundException.class,
+                () -> transactionService.createTransaction(11L, 5000.0, "cars", 99L));
+    }
+
+    @Test
+    void shouldThrowWhenAmountIsNull() {
+        assertThrows(InvalidTransactionException.class,
+                () -> transactionService.createTransaction(10L, null, "cars", null));
+    }
+
+    @Test
+    void shouldThrowWhenTypeIsBlank() {
+        assertThrows(InvalidTransactionException.class,
+                () -> transactionService.createTransaction(10L, 5000.0, "  ", null));
     }
 
     @Test
@@ -96,11 +133,10 @@ class TransactionServiceTest {
     }
 
     @Test
-    void shouldReturnZeroForNonExistentTransaction() {
+    void shouldThrowWhenTransitiveSumForNonExistentTransaction() {
         when(transactionRepository.findById(999L)).thenReturn(Optional.empty());
 
-        double sum = transactionService.getTransitiveSum(999L);
-
-        assertEquals(0.0, sum);
+        assertThrows(TransactionNotFoundException.class,
+                () -> transactionService.getTransitiveSum(999L));
     }
 }
